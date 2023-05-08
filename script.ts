@@ -41,8 +41,12 @@ new Array(TILE_SIZE ** 2 / 2).fill(null).forEach((_, i) => {
 randomize(POSITION_AVAILABLE);
 
 window.onclick = function (event: MouseEvent): void {
-  // PREVIOUS.selectedColor = null;
-  // PREVIOUS.clickedIndex = null;
+  PREVIOUS.selectedColor = null;
+  PREVIOUS.clickedIndex = null;
+};
+
+canvas.onclick = function (event: MouseEvent): void {
+  event.stopPropagation();
   CLICK.positionX = event.clientX;
   CLICK.positionY = event.clientY;
 };
@@ -55,49 +59,36 @@ function draw(context: CanvasRenderingContext2D): void {
     insertText(context, "You Win!");
     return window.cancelAnimationFrame(start);
   }
+
   POSITION_AVAILABLE.forEach((position: number | null, index: number) => {
     const [x, y] = [
       (index % TILE_SIZE) * (BLOCK_SIZE + SPACE_BEETWEEN_BLOCK),
       Math.floor(index / TILE_SIZE) * (BLOCK_SIZE + SPACE_BEETWEEN_BLOCK),
     ];
-    const [OFFSET_X, OFFSET_Y] = [
-      window.innerWidth / 2 - canvas.width / 2,
-      window.innerHeight / 2 - canvas.height / 2,
-    ];
-    const isClickedInsideXPosition: boolean =
-      (typeof CLICK.positionX === "undefined" || !CLICK.positionX)
-        ? false
-        : (CLICK.positionX >= x + OFFSET_X &&
-          CLICK.positionX <= x + BLOCK_SIZE + OFFSET_X);
-    const isClickedInsideYPosition: boolean =
-      (typeof CLICK.positionY === "undefined" || !CLICK.positionY)
-        ? false
-        : (CLICK.positionY >= y + OFFSET_Y &&
-          CLICK.positionY <= y + BLOCK_SIZE + OFFSET_Y);
-    const isClicked: boolean = isClickedInsideXPosition &&
-      isClickedInsideYPosition;
-    if (isClicked) {
-      if (PREVIOUS.clickedIndex && (PREVIOUS.selectedColor === position)) {
-        POSITION_AVAILABLE[PREVIOUS.clickedIndex] = null;
-        POSITION_AVAILABLE[index] = null;
+    if (isClickedBetween(x, y)) {
+      if (isColorPicked()) {
+        if (isColorMatch(index, position)) {
+          POSITION_AVAILABLE[PREVIOUS.clickedIndex] = null;
+          POSITION_AVAILABLE[index] = null;
+        }
+        PREVIOUS.clickedIndex = null;
+        PREVIOUS.selectedColor = null;
+      } else if (!isValidColorPicked(position)) {
+        PREVIOUS.clickedIndex = null;
+        PREVIOUS.selectedColor = null;
+      } else {
+        PREVIOUS.clickedIndex = index;
+        PREVIOUS.selectedColor = position;
       }
-      PREVIOUS.selectedColor = position;
-      PREVIOUS.clickedIndex = index;
       CLICK.positionX = null;
       CLICK.positionY = null;
     }
-    context.fillStyle = (typeof position === "number")
-      ? COLOR[position]
-      : "#00000000";
+    context.fillStyle =
+      typeof position === "number" ? COLOR[position] : "transparent";
     context.globalAlpha = PREVIOUS.clickedIndex === index ? 0.7 : 1;
     context.lineWidth = PREVIOUS.clickedIndex === index ? 10 : 1;
     context.beginPath();
-    context.rect(
-      x,
-      y,
-      BLOCK_SIZE,
-      BLOCK_SIZE,
-    );
+    context.rect(x, y, BLOCK_SIZE, BLOCK_SIZE);
     context.fill();
     context.stroke();
     context.closePath();
@@ -106,22 +97,57 @@ function draw(context: CanvasRenderingContext2D): void {
   start = window.requestAnimationFrame(() => draw(context));
 }
 
-function insertText(context: CanvasRenderingContext2D, text: string): void {
+function isColorMatch(index: number, position: number | null): boolean {
+  return (
+    typeof PREVIOUS.clickedIndex === "number" &&
+    PREVIOUS.clickedIndex !== index &&
+    PREVIOUS.selectedColor === position
+  );
+}
+function isColorPicked(): boolean {
+  return typeof PREVIOUS.clickedIndex === "number";
+}
+
+function isValidColorPicked(position: number | null) {
+  return typeof position === "number";
+}
+
+function isClickedBetween(x: number, y: number): boolean {
+  const [OFFSET_X, OFFSET_Y] = [
+    window.innerWidth / 2 - canvas.width / 2,
+    window.innerHeight / 2 - canvas.height / 2,
+  ];
+  const isBetweenXPosition: boolean = !CLICK.positionX
+    ? false
+    : CLICK.positionX >= x + OFFSET_X &&
+      CLICK.positionX <= x + BLOCK_SIZE + OFFSET_X;
+  const isBetweenYPosition: boolean = !CLICK.positionY
+    ? false
+    : CLICK.positionY >= y + OFFSET_Y &&
+      CLICK.positionY <= y + BLOCK_SIZE + OFFSET_Y;
+  return isBetweenXPosition && isBetweenYPosition;
+}
+
+function insertText(
+  context: CanvasRenderingContext2D,
+  text: string
+): TextMetrics {
   context.font = "50px Arial";
   context.fillStyle = "white";
   let measureText = context.measureText(text);
   context.fillText(
     text,
     canvas.width / 2 - measureText.width / 2,
-    canvas.height / 2 + measureText.actualBoundingBoxAscent / 2,
+    canvas.height / 2 + measureText.actualBoundingBoxAscent / 2
   );
+  return measureText;
 }
 
-function randomize(position: Array<number>): void {
+function randomize(position: Array<number | null>): void {
   for (let index = 0; index < position.length - 1; index++) {
     let victim: number = getIntegerRandomNumberBetween(
       index,
-      position.length - 1,
+      position.length - 1
     );
     let victimPosition = position[victim];
     let prevPosition = position[index];
@@ -139,5 +165,5 @@ function clearCanvas(context: CanvasRenderingContext2D): void {
 }
 
 function checkWin(blocks: Array<number | null>): boolean {
-  return blocks.every((block) => !block);
+  return blocks.every((block) => typeof block !== "number");
 }
