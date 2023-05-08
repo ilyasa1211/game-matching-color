@@ -68,7 +68,7 @@ function draw(context: CanvasRenderingContext2D): void {
     if (isClickedBetween(x, y)) {
       if (isColorPicked()) {
         if (isColorMatch(index, position)) {
-          POSITION_AVAILABLE[PREVIOUS.clickedIndex] = null;
+          POSITION_AVAILABLE[PREVIOUS.clickedIndex!] = null;
           POSITION_AVAILABLE[index] = null;
         }
         PREVIOUS.clickedIndex = null;
